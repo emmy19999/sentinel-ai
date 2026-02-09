@@ -4,6 +4,8 @@ import { Shield, Zap, Radar, Cpu, Activity } from "lucide-react";
 import ScanInput from "../components/ScanInput";
 import ScanProgress from "../components/ScanProgress";
 import ScanResults from "../components/ScanResults";
+import RemediationGuide from "../components/RemediationGuide";
+import AIPatchAssistant from "../components/AIPatchAssistant";
 
 const scanTasks = [
   "Initiating ICMP probe...",
@@ -23,7 +25,7 @@ const scanTasks = [
   "Generating threat assessment report...",
 ];
 
-type AppState = "idle" | "scanning" | "results";
+type AppState = "idle" | "scanning" | "results" | "remediation";
 
 const Index = () => {
   const [state, setState] = useState<AppState>("idle");
@@ -31,6 +33,7 @@ const Index = () => {
   const [scanPhase, setScanPhase] = useState(0);
   const [scanProgress, setScanProgress] = useState(0);
   const [currentTask, setCurrentTask] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
 
   const startScan = useCallback((t: string) => {
     setTarget(t);
@@ -75,9 +78,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background grid-bg scanline relative overflow-hidden">
-      {/* Ambient glow effects */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="fixed bottom-0 right-0 w-[400px] h-[400px] bg-secondary/5 blur-[120px] rounded-full pointer-events-none" />
+      {/* Liquid ambient blobs */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 rounded-full pointer-events-none animate-liquid-pulse" />
+      <div className="fixed bottom-0 right-0 w-[400px] h-[400px] bg-secondary/5 rounded-full pointer-events-none animate-liquid-pulse" style={{ animationDelay: "3s" }} />
+      <div className="fixed top-1/2 left-0 w-[300px] h-[300px] bg-primary/3 rounded-full pointer-events-none animate-liquid-morph" />
 
       <div className="relative z-10">
         {/* Top bar */}
@@ -88,7 +92,7 @@ const Index = () => {
                 <Shield className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <h1 className="font-display font-bold text-sm text-foreground tracking-wider">E-SCANV</h1>
+                <h1 className="font-display font-bold text-sm liquid-text tracking-wider">E-SCANV</h1>
                 <p className="text-[9px] text-muted-foreground font-code">ADVANCED THREAT HUNTER v3.0</p>
               </div>
             </div>
@@ -102,6 +106,14 @@ const Index = () => {
                 THREAT FEEDS: 52 ACTIVE
               </div>
               {state === "results" && (
+                <button
+                  onClick={() => setState("remediation")}
+                  className="px-3 py-1 border border-secondary/30 text-secondary hover:bg-secondary/10 rounded transition-all text-[10px] font-code"
+                >
+                  FIX GUIDE
+                </button>
+              )}
+              {(state === "results" || state === "remediation") && (
                 <button
                   onClick={resetScan}
                   className="px-3 py-1 border border-primary/30 text-primary hover:bg-primary/10 rounded transition-all"
@@ -134,10 +146,10 @@ const Index = () => {
                       <Shield className="w-8 h-8 text-primary" />
                     </div>
                   </div>
-                  <h1 className="font-display font-black text-4xl md:text-5xl text-foreground text-glow-primary tracking-tight">
+                  <h1 className="font-display font-black text-4xl md:text-5xl liquid-text tracking-tight">
                     E-SCANV
                   </h1>
-                  <p className="font-display text-lg text-secondary text-glow-secondary">
+                  <p className="font-display text-lg liquid-text">
                     Advanced Threat Hunter
                   </p>
                   <p className="text-sm text-muted-foreground max-w-lg mx-auto font-code">
@@ -218,11 +230,33 @@ const Index = () => {
                 exit={{ opacity: 0 }}
               >
                 <ScanResults target={target} />
+                <div className="flex justify-center mt-6">
+                  <button
+                    onClick={() => setState("remediation")}
+                    className="px-6 py-3 rounded-lg bg-primary/10 border border-primary/30 text-primary font-display font-bold text-sm hover:bg-primary/20 transition-all glow-primary liquid-border"
+                  >
+                    VIEW STEP-BY-STEP FIX GUIDE →
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {state === "remediation" && (
+              <motion.div
+                key="remediation"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <RemediationGuide onOpenAI={() => setAiOpen(true)} />
               </motion.div>
             )}
           </AnimatePresence>
         </main>
       </div>
+
+      {/* AI Assistant Panel */}
+      <AIPatchAssistant isOpen={aiOpen} onClose={() => setAiOpen(false)} />
     </div>
   );
 };

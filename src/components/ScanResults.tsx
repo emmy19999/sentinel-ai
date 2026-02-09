@@ -70,7 +70,7 @@ const ScanResults = ({ target }: { target: string }) => {
       <motion.div variants={item} className="border-glow rounded-lg p-6 bg-card">
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-5 h-5 text-primary" />
-          <h2 className="font-display font-bold text-lg text-foreground">THREAT ASSESSMENT REPORT</h2>
+          <h2 className="font-display font-bold text-lg liquid-text">THREAT ASSESSMENT REPORT</h2>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-code">
           <div>
@@ -99,7 +99,7 @@ const ScanResults = ({ target }: { target: string }) => {
           <div className="text-[10px] text-muted-foreground mb-2 font-code">INFECTION STATUS</div>
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-alert-yellow" />
-            <span className="text-alert-yellow font-display font-bold">{result.infectionStatus}</span>
+            <span className="font-display font-bold liquid-text-warm">{result.infectionStatus}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-2 font-code">
             Multiple indicators suggest unauthorized activity. Deep forensic analysis recommended.
@@ -187,7 +187,7 @@ const ScanResults = ({ target }: { target: string }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {result.malware.map((m, i) => (
             <div key={i} className="p-3 rounded border border-alert-red/20 bg-alert-red/5">
-              <div className="text-sm font-display font-bold text-alert-red">{m.name}</div>
+              <div className="text-sm font-display font-bold liquid-text-warm">{m.name}</div>
               <div className="text-xs text-muted-foreground font-code">{m.type} — Confidence: {m.confidence}%</div>
             </div>
           ))}
