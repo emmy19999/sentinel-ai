@@ -1,73 +1,141 @@
-# Welcome to your Lovable project
+E-scanV Advanced Security Scanner
+🛡️ Project Overview
+E-scanV Advanced Threat Hunter is a comprehensive AI-powered cybersecurity analysis platform that combines vulnerability assessment with sophisticated infection detection and incident response capabilities. The system provides professional-grade security scanning, forensic analysis, and actionable remediation guidance for cybersecurity professionals.
 
-## Project info
+✨ Key Features
+🔍 Advanced Scanning Capabilities
+Multi-protocol vulnerability scanning (SSH, HTTP/S, FTP, DNS, etc.)
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Real-time threat intelligence integration with 50+ security feeds
 
-## How can I edit this code?
+Behavioral anomaly detection using ML-based pattern recognition
 
-There are several ways of editing your application.
+Forensic timeline reconstruction of potential attacks
 
-**Use Lovable**
+Malware signature recognition and IOC correlation
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+🚨 Infection Detection System
+5-tier infection confidence scoring (Confirmed → Clean)
 
-Changes made via Lovable will be committed automatically to this repo.
+Rootkit and persistence mechanism detection
 
-**Use your preferred IDE**
+Lateral movement evidence analysis
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Data exfiltration pattern recognition
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Zero-day attack heuristic analysis
 
-Follow these steps:
+📊 Professional Reporting
+Executive threat summaries with risk scoring
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Interactive attack chain visualizations
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+IOC (Indicators of Compromise) documentation
 
-# Step 3: Install the necessary dependencies.
-npm i
+CVSS scoring integration for vulnerability prioritization
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+PDF/JSON/CSV export capabilities
 
-**Edit a file directly in GitHub**
+🛠️ Actionable Remediation
+5-stage incident response playbooks
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Step-by-step command-line instructions
 
-**Use GitHub Codespaces**
+Configuration file templates
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Verification procedures for each fix
 
-## What technologies are used for this project?
+Rollback plans for emergency situations
 
-This project is built with:
+🏗️ Technology Architecture
+Frontend Stack
+React 18 with TypeScript for type-safe development
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Vite for fast build times and HMR
 
-## How can I deploy this project?
+Tailwind CSS for utility-first styling
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+shadcn/ui for accessible, customizable components
 
-## Can I connect a custom domain to my Lovable project?
+Framer Motion for smooth animations
 
-Yes, you can!
+Recharts for data visualization
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Core Modules
+Scanner Engine - Real-time vulnerability detection
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Threat Analyzer - AI-powered infection assessment
+
+Forensic Collector - Evidence gathering and correlation
+
+Remediation Generator - Automated fix script creation
+
+Report Builder - Professional documentation system
+
+Specialized Components
+Animated Water Background - Dynamic gradient visualization
+
+Threat Matrix Dashboard - Real-time security posture display
+
+Network Topology Visualizer - Interactive infrastructure mapping
+
+Timeline Reconstructor - Attack progression analysis
+🔒 Security Features
+Client-Side Protection
+Input sanitization and validation
+
+XSS prevention through proper escaping
+
+Secure API key management
+
+No sensitive data storage in localStorage
+
+Privacy Considerations
+All scans are processed client-side by default
+
+Optional anonymous threat intelligence sharing
+
+Clear data retention policies
+
+GDPR/CCPA compliance ready
+
+📚 Documentation
+For detailed documentation on:
+
+API Integration - Connecting to external security services
+
+Custom Scanners - Extending scanning capabilities
+
+Theme Customization - Branding and styling
+
+Plugin Development - Adding new modules
+
+🤝 Contributing
+Fork the repository
+
+Create a feature branch
+
+Commit your changes
+
+Push to the branch
+
+Open a Pull Request
+
+📄 License
+This project is proprietary software. All rights reserved © 2026 emmy-brain-codes.
+
+🆘 Support
+For technical support or security concerns:
+
+Email: security@escanv.com
+
+Documentation: docs.escanv.com
+
+Security Issues: security@escanv.com
+
+<div align="center">
+"Your Security First" - 2026 © Made by emmy-brain-codes
+
+Protecting digital assets with advanced AI-powered threat detection
+
+</div>
