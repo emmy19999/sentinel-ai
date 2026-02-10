@@ -1,0 +1,4 @@
+project_id = "hvhtdythpcbabqindgxg"
+
+[functions.ai-patch-assistant]
+verify_jwt = false
