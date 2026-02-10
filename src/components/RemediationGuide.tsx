@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { ScanRisk } from "../hooks/useRealScan";
 import { CheckCircle, Circle, ChevronRight, Terminal, Copy, Check, Shield } from "lucide-react";
 
 interface Step {
@@ -93,7 +94,7 @@ const priorityBg: Record<string, string> = {
   MEDIUM: "bg-alert-blue/10 border-alert-blue/30",
 };
 
-const RemediationGuide = ({ onOpenAI }: { onOpenAI: () => void }) => {
+const RemediationGuide = ({ onOpenAI, realRisks }: { onOpenAI: () => void; realRisks?: ScanRisk[] }) => {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [expandedStep, setExpandedStep] = useState<number | null>(0);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);

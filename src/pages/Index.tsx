@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, Zap, Radar, Cpu, Activity } from "lucide-react";
 import ScanInput from "../components/ScanInput";
@@ -6,75 +6,35 @@ import ScanProgress from "../components/ScanProgress";
 import ScanResults from "../components/ScanResults";
 import RemediationGuide from "../components/RemediationGuide";
 import AIPatchAssistant from "../components/AIPatchAssistant";
-
-const scanTasks = [
-  "Initiating ICMP probe...",
-  "Performing TCP handshake analysis...",
-  "Extracting service banners...",
-  "OS fingerprinting via TTL analysis...",
-  "Querying CVE database (NVD, ExploitDB)...",
-  "Cross-referencing CISA KEV catalog...",
-  "Scanning for open ports...",
-  "Checking known C2 server patterns...",
-  "Analyzing DNS query patterns...",
-  "Detecting persistence mechanisms...",
-  "Searching for lateral movement evidence...",
-  "Checking for data exfiltration signatures...",
-  "Running malware signature matching...",
-  "Computing infection confidence score...",
-  "Generating threat assessment report...",
-];
+import { useRealScan } from "../hooks/useRealScan";
 
 type AppState = "idle" | "scanning" | "results" | "remediation";
 
 const Index = () => {
-  const [state, setState] = useState<AppState>("idle");
-  const [target, setTarget] = useState("");
-  const [scanPhase, setScanPhase] = useState(0);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [currentTask, setCurrentTask] = useState("");
+  const [appState, setAppState] = useState<AppState>("idle");
   const [aiOpen, setAiOpen] = useState(false);
+  const realScan = useRealScan();
 
-  const startScan = useCallback((t: string) => {
-    setTarget(t);
-    setState("scanning");
-    setScanPhase(0);
-    setScanProgress(0);
-  }, []);
+  const handleStartScan = (target: string) => {
+    setAppState("scanning");
+    realScan.startScan(target);
+  };
 
-  useEffect(() => {
-    if (state !== "scanning") return;
-
-    let progress = 0;
-    const totalDuration = 6000;
-    const interval = 100;
-    const increment = 100 / (totalDuration / interval);
-
-    const timer = setInterval(() => {
-      progress += increment;
-      setScanProgress(Math.min(progress, 100));
-
-      const taskIndex = Math.floor((progress / 100) * scanTasks.length);
-      setCurrentTask(scanTasks[Math.min(taskIndex, scanTasks.length - 1)]);
-
-      const phaseIndex = Math.floor((progress / 100) * 6);
-      setScanPhase(Math.min(phaseIndex, 5));
-
-      if (progress >= 100) {
-        clearInterval(timer);
-        setTimeout(() => setState("results"), 500);
-      }
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [state]);
+  // Watch for scan completion
+  const prevState = realScan.scanState;
+  if (prevState === "completed" && appState === "scanning") {
+    setAppState("results");
+  }
+  if (prevState === "error" && appState === "scanning") {
+    setAppState("idle");
+  }
 
   const resetScan = () => {
-    setState("idle");
-    setTarget("");
-    setScanProgress(0);
-    setScanPhase(0);
+    setAppState("idle");
+    realScan.reset();
   };
+
+  const target = realScan.scanResult?.target || "";
 
   return (
     <div className="min-h-screen bg-background grid-bg scanline relative overflow-hidden">
@@ -93,7 +53,7 @@ const Index = () => {
               </div>
               <div>
                 <h1 className="font-display font-bold text-sm liquid-text tracking-wider">E-SCANV</h1>
-                <p className="text-[9px] text-muted-foreground font-code">ADVANCED THREAT HUNTER v3.0</p>
+                <p className="text-[9px] text-muted-foreground font-code">ADVANCED THREAT HUNTER v3.0 — LIVE SCANNING</p>
               </div>
             </div>
             <div className="flex items-center gap-4 text-[10px] font-code text-muted-foreground">
@@ -103,17 +63,17 @@ const Index = () => {
               </div>
               <div className="hidden md:flex items-center gap-1">
                 <Activity className="w-3 h-3" />
-                THREAT FEEDS: 52 ACTIVE
+                HOSTEDSCAN: CONNECTED
               </div>
-              {state === "results" && (
+              {appState === "results" && (
                 <button
-                  onClick={() => setState("remediation")}
+                  onClick={() => setAppState("remediation")}
                   className="px-3 py-1 border border-secondary/30 text-secondary hover:bg-secondary/10 rounded transition-all text-[10px] font-code"
                 >
                   FIX GUIDE
                 </button>
               )}
-              {(state === "results" || state === "remediation") && (
+              {(appState === "results" || appState === "remediation") && (
                 <button
                   onClick={resetScan}
                   className="px-3 py-1 border border-primary/30 text-primary hover:bg-primary/10 rounded transition-all"
@@ -127,7 +87,7 @@ const Index = () => {
 
         <main className="container mx-auto px-4 py-8">
           <AnimatePresence mode="wait">
-            {state === "idle" && (
+            {appState === "idle" && (
               <motion.div
                 key="idle"
                 initial={{ opacity: 0 }}
@@ -135,7 +95,6 @@ const Index = () => {
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center justify-center min-h-[70vh] space-y-8"
               >
-                {/* Hero */}
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -153,12 +112,11 @@ const Index = () => {
                     Advanced Threat Hunter
                   </p>
                   <p className="text-sm text-muted-foreground max-w-lg mx-auto font-code">
-                    Next-generation AI cybersecurity platform combining vulnerability assessment,
-                    intrusion detection, malware analysis, and incident response.
+                    Real-time vulnerability scanning powered by HostedScan. Enter an IP or domain to
+                    run a live NMAP scan with CVE detection and risk assessment.
                   </p>
                 </motion.div>
 
-                {/* Feature badges */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -166,10 +124,10 @@ const Index = () => {
                   className="flex flex-wrap justify-center gap-2 max-w-xl"
                 >
                   {[
-                    { icon: Radar, label: "Threat Intelligence" },
-                    { icon: Cpu, label: "Forensic Analysis" },
-                    { icon: Zap, label: "Zero-Day Detection" },
-                    { icon: Activity, label: "Real-time Monitoring" },
+                    { icon: Radar, label: "Live NMAP Scanning" },
+                    { icon: Cpu, label: "CVE Detection" },
+                    { icon: Zap, label: "Risk Assessment" },
+                    { icon: Activity, label: "AI Remediation" },
                   ].map(({ icon: Icon, label }) => (
                     <div
                       key={label}
@@ -181,9 +139,8 @@ const Index = () => {
                   ))}
                 </motion.div>
 
-                <ScanInput onScan={startScan} isScanning={false} />
+                <ScanInput onScan={handleStartScan} isScanning={false} />
 
-                {/* Stats */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -191,9 +148,9 @@ const Index = () => {
                   className="grid grid-cols-3 gap-8 text-center mt-8"
                 >
                   {[
-                    { value: "50+", label: "Threat Feeds" },
-                    { value: "250K+", label: "CVE Database" },
-                    { value: "99.7%", label: "Detection Rate" },
+                    { value: "NMAP", label: "Scan Engine" },
+                    { value: "REAL", label: "Live Results" },
+                    { value: "AI", label: "Patch Assistant" },
                   ].map((s) => (
                     <div key={s.label}>
                       <div className="text-2xl font-display font-bold text-primary text-glow-primary">{s.value}</div>
@@ -204,7 +161,7 @@ const Index = () => {
               </motion.div>
             )}
 
-            {state === "scanning" && (
+            {appState === "scanning" && (
               <motion.div
                 key="scanning"
                 initial={{ opacity: 0 }}
@@ -214,49 +171,67 @@ const Index = () => {
               >
                 <div className="text-center mb-8">
                   <h2 className="font-display font-bold text-xl text-foreground mb-2">
-                    SCANNING TARGET: <span className="text-primary">{target}</span>
+                    LIVE SCANNING: <span className="text-primary">{realScan.scanResult?.target || "..."}</span>
                   </h2>
-                  <p className="text-xs text-muted-foreground font-code">Do not close this window during analysis</p>
+                  <p className="text-xs text-muted-foreground font-code">
+                    Real vulnerability scan in progress via HostedScan API
+                  </p>
                 </div>
-                <ScanProgress phase={scanPhase} progress={scanProgress} currentTask={currentTask} />
+                <ScanProgress
+                  phase={Math.min(Math.floor((realScan.scanProgress / 100) * 6), 5)}
+                  progress={realScan.scanProgress}
+                  currentTask={realScan.currentTask}
+                />
               </motion.div>
             )}
 
-            {state === "results" && (
+            {appState === "results" && realScan.scanResult && (
               <motion.div
                 key="results"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <ScanResults target={target} />
-                <div className="flex justify-center mt-6">
+                <ScanResults target={target} realData={realScan.scanResult} />
+                <div className="flex justify-center mt-6 gap-4">
                   <button
-                    onClick={() => setState("remediation")}
+                    onClick={() => setAppState("remediation")}
                     className="px-6 py-3 rounded-lg bg-primary/10 border border-primary/30 text-primary font-display font-bold text-sm hover:bg-primary/20 transition-all glow-primary liquid-border"
                   >
                     VIEW STEP-BY-STEP FIX GUIDE →
+                  </button>
+                  <button
+                    onClick={() => setAiOpen(true)}
+                    className="px-6 py-3 rounded-lg bg-secondary/10 border border-secondary/30 text-secondary font-display font-bold text-sm hover:bg-secondary/20 transition-all glow-secondary liquid-border"
+                  >
+                    ASK AI TO FIX →
                   </button>
                 </div>
               </motion.div>
             )}
 
-            {state === "remediation" && (
+            {appState === "remediation" && (
               <motion.div
                 key="remediation"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <RemediationGuide onOpenAI={() => setAiOpen(true)} />
+                <RemediationGuide
+                  onOpenAI={() => setAiOpen(true)}
+                  realRisks={realScan.scanResult?.risks}
+                />
               </motion.div>
             )}
           </AnimatePresence>
         </main>
       </div>
 
-      {/* AI Assistant Panel */}
-      <AIPatchAssistant isOpen={aiOpen} onClose={() => setAiOpen(false)} />
+      <AIPatchAssistant
+        isOpen={aiOpen}
+        onClose={() => setAiOpen(false)}
+        scanFindings={realScan.scanResult?.risks}
+      />
     </div>
   );
 };

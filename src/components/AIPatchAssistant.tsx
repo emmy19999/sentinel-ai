@@ -22,9 +22,10 @@ const SUGGESTED_PROMPTS = [
 interface AIPatchAssistantProps {
   isOpen: boolean;
   onClose: () => void;
+  scanFindings?: any[];
 }
 
-const AIPatchAssistant = ({ isOpen, onClose }: AIPatchAssistantProps) => {
+const AIPatchAssistant = ({ isOpen, onClose, scanFindings }: AIPatchAssistantProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -50,7 +51,7 @@ const AIPatchAssistant = ({ isOpen, onClose }: AIPatchAssistantProps) => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages: allMessages }),
+      body: JSON.stringify({ messages: allMessages, scanContext: scanFindings }),
       signal: abortRef.current.signal,
     });
 
