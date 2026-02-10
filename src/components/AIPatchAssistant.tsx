@@ -1,26 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Bot, User, Terminal, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-const SYSTEM_CONTEXT = `You are E-scanV AI Patch Assistant — an expert cybersecurity remediation AI. You help users fix vulnerabilities, remove malware, harden their systems, and respond to incidents.
-
-Current scan findings:
-- OpenSSH 7.4 with CVE-2024-6387 (regreSSHion RCE) on port 22
-- Apache 2.4.6 on port 80, nginx 1.18 on port 443
-- MySQL 5.7.34 publicly exposed on port 3306 (HIGH RISK)
-- HTTP-Proxy on port 8080 (unknown version, HIGH RISK)
-- Suspicious C2 communication to 185.159.82.142
-- Cryptominer XMRig variant detected (82% confidence)
-- Cobalt Strike Beacon detected (68% confidence)
-- Rootkit artifact at /tmp/.X11-unix/.systemd (95% confidence)
-- HTTP/2 Rapid Reset DDoS vulnerability (CVE-2023-44487)
-
-Provide specific, actionable commands. Be concise but thorough. Use code blocks for commands. Always warn about risks before destructive operations.`;
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-patch-assistant`;
 
 const SUGGESTED_PROMPTS = [
   "How do I remove the XMRig cryptominer?",
@@ -28,6 +16,7 @@ const SUGGESTED_PROMPTS = [
   "How to secure MySQL port 3306?",
   "Help me investigate the rootkit at /tmp/.X11-unix/",
   "Create a firewall hardening script",
+  "Generate a complete remediation script for all findings",
 ];
 
 interface AIPatchAssistantProps {
@@ -40,30 +29,125 @@ const AIPatchAssistant = ({ isOpen, onClose }: AIPatchAssistantProps) => {
     {
       role: "assistant",
       content:
-        "🛡️ **E-scanV AI Patch Assistant Online**\n\nI've analyzed your scan results and I'm ready to help you remediate the detected threats. I can:\n\n- Guide you through **vulnerability patching**\n- Help **remove detected malware** (XMRig, Cobalt Strike)\n- Assist with **firewall hardening**\n- Investigate **rootkit artifacts**\n\nWhat would you like to fix first?",
+        "🛡️ **E-scanV AI Patch Assistant Online**\n\nI've analyzed your scan results and I'm ready to help you remediate the detected threats. I can:\n\n- Guide you through **vulnerability patching**\n- Help **remove detected malware** (XMRig, Cobalt Strike)\n- Assist with **firewall hardening**\n- Investigate **rootkit artifacts**\n- Generate **automated remediation scripts**\n\nWhat would you like to fix first?",
     },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
+  const streamChat = useCallback(async (allMessages: Message[]) => {
+    abortRef.current = new AbortController();
+
+    const resp = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ messages: allMessages }),
+      signal: abortRef.current.signal,
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({ error: "Request failed" }));
+      if (resp.status === 429) {
+        toast.error("Rate limit exceeded. Please wait a moment.");
+      } else if (resp.status === 402) {
+        toast.error("AI credits exhausted. Please add credits in Settings.");
+      }
+      throw new Error(errData.error || "AI request failed");
+    }
+
+    if (!resp.body) throw new Error("No response body");
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let textBuffer = "";
+    let assistantSoFar = "";
+    let streamDone = false;
+
+    const upsert = (chunk: string) => {
+      assistantSoFar += chunk;
+      const content = assistantSoFar;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && prev.length > 1) {
+          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content } : m));
+        }
+        return [...prev, { role: "assistant", content }];
+      });
+    };
+
+    while (!streamDone) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      textBuffer += decoder.decode(value, { stream: true });
+
+      let newlineIndex: number;
+      while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+        let line = textBuffer.slice(0, newlineIndex);
+        textBuffer = textBuffer.slice(newlineIndex + 1);
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (line.startsWith(":") || line.trim() === "") continue;
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === "[DONE]") { streamDone = true; break; }
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) upsert(content);
+        } catch {
+          textBuffer = line + "\n" + textBuffer;
+          break;
+        }
+      }
+    }
+
+    // flush remaining
+    if (textBuffer.trim()) {
+      for (let raw of textBuffer.split("\n")) {
+        if (!raw) continue;
+        if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+        if (raw.startsWith(":") || raw.trim() === "") continue;
+        if (!raw.startsWith("data: ")) continue;
+        const jsonStr = raw.slice(6).trim();
+        if (jsonStr === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) upsert(content);
+        } catch { /* ignore */ }
+      }
+    }
+  }, []);
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
     const userMsg: Message = { role: "user", content: text.trim() };
-    setMessages((prev) => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response (will be replaced with real Lovable AI call)
-    setTimeout(() => {
-      const response = generateLocalResponse(text.trim());
-      setMessages((prev) => [...prev, { role: "assistant", content: response }]);
+    try {
+      await streamChat(newMessages);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        console.error("AI chat error:", e);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "⚠️ **Error:** Failed to get AI response. Please try again." },
+        ]);
+      }
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -89,7 +173,7 @@ const AIPatchAssistant = ({ isOpen, onClose }: AIPatchAssistantProps) => {
               </div>
               <div>
                 <h3 className="font-display font-bold text-sm text-foreground">AI PATCH ASSISTANT</h3>
-                <p className="text-[9px] font-code text-muted-foreground">POWERED BY E-SCANV</p>
+                <p className="text-[9px] font-code text-primary">● LIVE AI — STREAMING</p>
               </div>
             </div>
             <button onClick={onClose} className="p-2 rounded hover:bg-muted transition-colors">
@@ -140,7 +224,7 @@ const AIPatchAssistant = ({ isOpen, onClose }: AIPatchAssistantProps) => {
               </motion.div>
             )}
 
-            {/* Suggested prompts (show only at start) */}
+            {/* Suggested prompts */}
             {messages.length <= 1 && (
               <div className="space-y-2 pt-2">
                 <p className="text-[10px] font-code text-muted-foreground">SUGGESTED ACTIONS:</p>
@@ -207,32 +291,5 @@ const MessageContent = ({ content }: { content: string }) => {
     </div>
   );
 };
-
-/** Local response generator — fallback until AI backend is connected */
-function generateLocalResponse(query: string): string {
-  const q = query.toLowerCase();
-
-  if (q.includes("xmrig") || q.includes("cryptominer") || q.includes("miner")) {
-    return `**Removing XMRig Cryptominer**\n\n**Step 1:** Identify the process:\n\`\`\`bash\nps aux | grep -iE '(xmrig|minerd|kworker)' | grep -v grep\n\`\`\`\n\n**Step 2:** Kill the process:\n\`\`\`bash\nkill -9 <PID>\n\`\`\`\n\n**Step 3:** Remove the binary and persistence:\n\`\`\`bash\nfind / -name "xmrig*" -type f 2>/dev/null\nfind / -name ".xmrig*" -type f 2>/dev/null\ncrontab -l | grep -v 'miner\\|xmrig' | crontab -\n\`\`\`\n\n**Step 4:** Block mining pool connections:\n\`\`\`bash\nsudo iptables -A OUTPUT -p tcp --dport 3333 -j DROP\nsudo iptables -A OUTPUT -p tcp --dport 5555 -j DROP\n\`\`\`\n\n⚠️ **Important:** Also check for the Cobalt Strike beacon — miners are often deployed alongside RATs.`;
-  }
-
-  if (q.includes("cve-2024-6387") || q.includes("openssh") || q.includes("regresshion")) {
-    return `**Patching CVE-2024-6387 (regreSSHion)**\n\nThis is a **critical RCE** in OpenSSH < 9.8.\n\n**Step 1:** Check current version:\n\`\`\`bash\nsshd -V\n\`\`\`\n\n**Step 2:** Update OpenSSH:\n\`\`\`bash\nsudo apt-get update\nsudo apt-get install --only-upgrade openssh-server\n\`\`\`\n\n**Step 3:** If package manager doesn't have 9.8+, build from source:\n\`\`\`bash\nwget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.8p1.tar.gz\ntar xzf openssh-9.8p1.tar.gz\ncd openssh-9.8p1\n./configure && make && sudo make install\n\`\`\`\n\n**Step 4:** Temporary mitigation (if patching is delayed):\n\`\`\`bash\n# Set LoginGraceTime to 0 in sshd_config\necho "LoginGraceTime 0" | sudo tee -a /etc/ssh/sshd_config\nsudo systemctl restart sshd\n\`\`\`\n\n⚠️ Setting LoginGraceTime to 0 may cause DoS — monitor connections.`;
-  }
-
-  if (q.includes("mysql") || q.includes("3306") || q.includes("database")) {
-    return `**Securing MySQL Port 3306**\n\n**Step 1:** Block public access:\n\`\`\`bash\nsudo ufw deny 3306\nsudo ufw allow from 10.0.0.0/8 to any port 3306\n\`\`\`\n\n**Step 2:** Bind to localhost only:\n\`\`\`bash\n# Edit /etc/mysql/mysql.conf.d/mysqld.cnf\nbind-address = 127.0.0.1\nsudo systemctl restart mysql\n\`\`\`\n\n**Step 3:** Remove anonymous users:\n\`\`\`sql\nDELETE FROM mysql.user WHERE User='';\nFLUSH PRIVILEGES;\n\`\`\`\n\n**Step 4:** Use SSH tunnel for remote access:\n\`\`\`bash\nssh -L 3306:localhost:3306 user@server\n\`\`\``;
-  }
-
-  if (q.includes("rootkit") || q.includes("/tmp") || q.includes(".systemd") || q.includes("investigate")) {
-    return `**Investigating Rootkit at /tmp/.X11-unix/.systemd**\n\n⚠️ **Do NOT delete immediately** — preserve evidence first.\n\n**Step 1:** Capture the hash:\n\`\`\`bash\nmd5sum /tmp/.X11-unix/.systemd\nsha256sum /tmp/.X11-unix/.systemd\n\`\`\`\n\n**Step 2:** Check file details:\n\`\`\`bash\nfile /tmp/.X11-unix/.systemd\nstat /tmp/.X11-unix/.systemd\nstrings /tmp/.X11-unix/.systemd | head -50\n\`\`\`\n\n**Step 3:** Check if it's running:\n\`\`\`bash\nlsof /tmp/.X11-unix/.systemd\nps aux | grep systemd | grep -v /usr\n\`\`\`\n\n**Step 4:** Run rootkit scanners:\n\`\`\`bash\nsudo apt-get install rkhunter chkrootkit\nrkhunter --checkall\nchkrootkit\n\`\`\`\n\n**Step 5:** Quarantine and remove:\n\`\`\`bash\nmkdir -p /forensics/quarantine\ncp /tmp/.X11-unix/.systemd /forensics/quarantine/\nrm -f /tmp/.X11-unix/.systemd\n\`\`\``;
-  }
-
-  if (q.includes("firewall") || q.includes("harden") || q.includes("script")) {
-    return `**Firewall Hardening Script**\n\n\`\`\`bash\n#!/bin/bash\n# E-scanV Firewall Hardening Script\nset -e\n\necho "[*] Resetting firewall rules..."\nsudo ufw --force reset\n\n# Default policies\nsudo ufw default deny incoming\nsudo ufw default allow outgoing\n\n# Allow SSH (restrict to your IP)\nsudo ufw allow from YOUR_IP to any port 22\n\n# Allow HTTP/HTTPS\nsudo ufw allow 80/tcp\nsudo ufw allow 443/tcp\n\n# Block known malicious IPs\nsudo ufw deny from 185.159.82.142\n\n# Block common attack ports\nsudo ufw deny 3306  # MySQL\nsudo ufw deny 8080  # HTTP-Proxy\n\n# Enable\nsudo ufw --force enable\n\necho "[+] Firewall hardened successfully"\nsudo ufw status verbose\n\`\`\`\n\nSave as \`harden.sh\`, run with \`sudo bash harden.sh\`. Replace YOUR_IP with your management IP.`;
-  }
-
-  return `I can help with that. Based on the scan results, here are the key areas I can assist with:\n\n1. **Malware Removal** — XMRig cryptominer and Cobalt Strike beacon\n2. **Vulnerability Patching** — CVE-2024-6387 (OpenSSH), CVE-2023-44487 (HTTP/2)\n3. **Access Control** — MySQL exposure, HTTP-Proxy hardening\n4. **Forensics** — Rootkit investigation at /tmp/.X11-unix/\n5. **Monitoring** — Audit logging and EDR deployment\n\nAsk me about any specific issue and I'll provide step-by-step commands to fix it.`;
-}
 
 export default AIPatchAssistant;
